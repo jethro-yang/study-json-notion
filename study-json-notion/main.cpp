@@ -121,7 +121,7 @@ int main()
 			nlohmann::json jsonData = nlohmann::json::parse(EncordedString);
 			std::vector<FUserInfo> users = ParseUserInfo(jsonData);
 
-			std::cout << "Response:\n" << EncordedString << std::endl;
+			//std::cout << "Response:\n" << EncordedString << std::endl;
 
 			// 결과 출력
 			for (const auto& user : users) 
