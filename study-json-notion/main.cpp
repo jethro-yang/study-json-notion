@@ -1,7 +1,7 @@
-#include <iostream>
+ï»¿#include <iostream>
 #include <string>
 #include <nlohmann/json.hpp>
-#include <curl/curl.h>   // libcurl ¶óÀÌºê·¯¸® Çì´õ (HTTP ¿äÃ»À» À§ÇØ ÇÊ¿ä)
+#include <curl/curl.h>   // libcurl ë¼ì´ë¸ŒëŸ¬ë¦¬ í—¤ë” (HTTP ìš”ì²­ì„ ìœ„í•´ í•„ìš”)
 
 struct FUserInfo
 {
@@ -22,7 +22,8 @@ std::vector<FUserInfo> ParseUserInfo(const nlohmann::json& jsonData)
 			FUserInfo user;
 
 			// name
-			if (item.contains("properties") && item["properties"].contains("name"))
+			if (item.contains("properties") 
+				&& item["properties"].contains("name"))
 			{
 				auto titleArray = item["properties"]["name"]["title"];
 				if (!titleArray.empty() && titleArray[0].contains("plain_text"))
@@ -32,19 +33,22 @@ std::vector<FUserInfo> ParseUserInfo(const nlohmann::json& jsonData)
 			}
 
 			// phone_number
-			if (item["properties"].contains("phone_number") && item["properties"]["phone_number"].contains("phone_number"))
+			if (item["properties"].contains("phone_number") 
+				&& item["properties"]["phone_number"].contains("phone_number"))
 			{
 				user.PhoneNumber = item["properties"]["phone_number"]["phone_number"].get<std::string>();
 			}
 
 			// age
-			if (item["properties"].contains("age") && item["properties"]["age"].contains("number"))
+			if (item["properties"].contains("age") 
+				&& item["properties"]["age"].contains("number"))
 			{
 				user.Age = item["properties"]["age"]["number"].get<int>();
 			}
 
 			// is_marriage
-			if (item["properties"].contains("is_marriage") && item["properties"]["is_marriage"].contains("checkbox"))
+			if (item["properties"].contains("is_marriage") 
+				&& item["properties"]["is_marriage"].contains("checkbox"))
 			{
 				user.bIsMarriage = item["properties"]["is_marriage"]["checkbox"].get<bool>();
 			}
@@ -55,12 +59,12 @@ std::vector<FUserInfo> ParseUserInfo(const nlohmann::json& jsonData)
 	return userList;
 }
 
-// Äİ¹é ÇÔ¼ö: ÀÀ´ä µ¥ÀÌÅÍ¸¦ ¹Ş¾Æ¼­ ¹®ÀÚ¿­¿¡ ÀúÀå
+// ì½œë°± í•¨ìˆ˜: ì‘ë‹µ ë°ì´í„°ë¥¼ ë°›ì•„ì„œ ë¬¸ìì—´ì— ì €ì¥
 size_t WriteCallback(void* contents, size_t size, size_t nmemb, std::string* output)
 {
-	size_t totalSize = size * nmemb;        // ½ÇÁ¦ µ¥ÀÌÅÍ Å©±â °è»ê
-	output->append((char*)contents, totalSize); // ¹ŞÀº µ¥ÀÌÅÍ¸¦ output ¹®ÀÚ¿­¿¡ Ãß°¡
-	return totalSize;                        // Ã³¸®ÇÑ µ¥ÀÌÅÍ Å©±â ¹İÈ¯5
+	size_t totalSize = size * nmemb;        // ì‹¤ì œ ë°ì´í„° í¬ê¸° ê³„ì‚°
+	output->append((char*)contents, totalSize); // ë°›ì€ ë°ì´í„°ë¥¼ output ë¬¸ìì—´ì— ì¶”ê°€
+	return totalSize;                        // ì²˜ë¦¬í•œ ë°ì´í„° í¬ê¸° ë°˜í™˜5
 }
 
 int main()
@@ -74,40 +78,40 @@ int main()
 
 	if (curl)
 	{
-		// SSL ÀÎÁõ¼­ ÆÄÀÏ ¼³Á¤ (SSL °ËÁõÀ» À§ÇÑ ÀÎÁõ¼­ °æ·Î)
+		// SSL ì¸ì¦ì„œ íŒŒì¼ ì„¤ì • (SSL ê²€ì¦ì„ ìœ„í•œ ì¸ì¦ì„œ ê²½ë¡œ)
 		curl_easy_setopt(curl, CURLOPT_CAINFO, "./pem/cacert.pem");
 
-		// HTTP Çì´õ ¼³Á¤
+		// HTTP í—¤ë” ì„¤ì •
 		struct curl_slist* headers = NULL;
 		std::string BearerString = "Authorization: Bearer ";
 		std::string SecretKey = "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";
 		std::string AuthResult = BearerString + SecretKey;
 
-		// Çì´õ Ãß°¡
+		// í—¤ë” ì¶”ê°€
 		headers = curl_slist_append(headers, AuthResult.c_str());
 		headers = curl_slist_append(headers, "Notion-Version: 2022-06-28");
 		headers = curl_slist_append(headers, "Content-Type: application/json");
 
-		// URL ¼³Á¤
+		// URL ì„¤ì •
 		std::string URL = "https://api.notion.com/v1/databases/19e45759635e8028adb0d83e3cf969ff/query";
 		curl_easy_setopt(curl, CURLOPT_URL, URL.c_str());
-		curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers); // Çì´õ Àû¿ë
+		curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers); // í—¤ë” ì ìš©
 
-		// POST ¿äÃ» ¼³Á¤ (ÇÊ¼ö)
+		// POST ìš”ì²­ ì„¤ì • (í•„ìˆ˜)
 		curl_easy_setopt(curl, CURLOPT_POST, 1L);
 
-		// POST ¿äÃ» º»¹® Ãß°¡ (Notion API¿¡ µû¶ó ´Ù¸§)
-		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, "{}"); // ºó JSON body Ãß°¡
+		// POST ìš”ì²­ ë³¸ë¬¸ ì¶”ê°€ (Notion APIì— ë”°ë¼ ë‹¤ë¦„)
+		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, "{}"); // ë¹ˆ JSON body ì¶”ê°€
 
-		// ÀÀ´ä µ¥ÀÌÅÍ¸¦ Ã³¸®ÇÒ Äİ¹é ÇÔ¼ö ¼³Á¤
+		// ì‘ë‹µ ë°ì´í„°ë¥¼ ì²˜ë¦¬í•  ì½œë°± í•¨ìˆ˜ ì„¤ì •
 		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
 		curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
 
-		//// SSL ÀÎÁõ¼­ °ËÁõ ÇØÁ¦ (Å×½ºÆ®¿ë, ÇÊ¿äÇÏ¸é ¼³Á¤ °¡´É)
+		//// SSL ì¸ì¦ì„œ ê²€ì¦ í•´ì œ (í…ŒìŠ¤íŠ¸ìš©, í•„ìš”í•˜ë©´ ì„¤ì • ê°€ëŠ¥)
 		//curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
 		//curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
 
-		// HTTP ¿äÃ» ½ÇÇà
+		// HTTP ìš”ì²­ ì‹¤í–‰
 		res = curl_easy_perform(curl);
 
 		if (res != CURLE_OK)
@@ -117,13 +121,13 @@ int main()
 		else
 		{
 			std::string EncordedString = response;
-			// JSON ÆÄ½Ì
+			// JSON íŒŒì‹±
 			nlohmann::json jsonData = nlohmann::json::parse(EncordedString);
 			std::vector<FUserInfo> users = ParseUserInfo(jsonData);
 
 			//std::cout << "Response:\n" << EncordedString << std::endl;
 
-			// °á°ú Ãâ·Â
+			// ê²°ê³¼ ì¶œë ¥
 			for (const auto& user : users) 
 			{
 				std::cout << "Name: " << user.Name << 
@@ -133,7 +137,7 @@ int main()
 			}
 		}
 
-		// ¸Ş¸ğ¸® ÇØÁ¦
+		// ë©”ëª¨ë¦¬ í•´ì œ
 		curl_slist_free_all(headers);
 		curl_easy_cleanup(curl);
 	}
@@ -157,8 +161,8 @@ int main()
 //using json = nlohmann::json;
 //
 ///*
-//	JSON ÆÄÀÏ ÀúÀå ¿Ï·á: data.json
-//	ºÒ·¯¿Â JSON µ¥ÀÌÅÍ:
+//	JSON íŒŒì¼ ì €ì¥ ì™„ë£Œ: data.json
+//	ë¶ˆëŸ¬ì˜¨ JSON ë°ì´í„°:
 //	{
 //		"age": 30,
 //		"isEmployed": true,
@@ -169,12 +173,12 @@ int main()
 //			"JavaScript"
 //		]
 //	}
-//	ÀÌ¸§: "John Doe"
-//	³ªÀÌ: 30
+//	ì´ë¦„: "John Doe"
+//	ë‚˜ì´: 30
 //*/
 //int main()
 //{
-//	// JSON µ¥ÀÌÅÍ »ı¼º
+//	// JSON ë°ì´í„° ìƒì„±
 //	json myData =
 //	{
 //		{"name", "John Doe"},
@@ -183,21 +187,21 @@ int main()
 //		{"isEmployed", true}
 //	};
 //
-//	// JSON µ¥ÀÌÅÍ¸¦ ÆÄÀÏ·Î ÀúÀå
+//	// JSON ë°ì´í„°ë¥¼ íŒŒì¼ë¡œ ì €ì¥
 //	std::ofstream outFile("data.json");
 //	if (outFile.is_open())
 //	{
-//		outFile << myData.dump(4); // º¸±â ÁÁ°Ô Á¤·ÄµÈ JSON ÀúÀå
+//		outFile << myData.dump(4); // ë³´ê¸° ì¢‹ê²Œ ì •ë ¬ëœ JSON ì €ì¥
 //		outFile.close();
-//		std::cout << "JSON ÆÄÀÏ ÀúÀå ¿Ï·á: data.json\n";
+//		std::cout << "JSON íŒŒì¼ ì €ì¥ ì™„ë£Œ: data.json\n";
 //	}
 //	else
 //	{
-//		std::cerr << "ÆÄÀÏÀ» ¿­ ¼ö ¾ø½À´Ï´Ù!\n";
+//		std::cerr << "íŒŒì¼ì„ ì—´ ìˆ˜ ì—†ìŠµë‹ˆë‹¤!\n";
 //		return 1;
 //	}
 //
-//	// JSON ÆÄÀÏ ÀĞ±â
+//	// JSON íŒŒì¼ ì½ê¸°
 //	std::ifstream inFile("data.json");
 //	if (inFile.is_open())
 //	{
@@ -205,16 +209,16 @@ int main()
 //		inFile >> loadedData;
 //		inFile.close();
 //
-//		// ºÒ·¯¿Â µ¥ÀÌÅÍ Ãâ·Â
-//		std::cout << "ºÒ·¯¿Â JSON µ¥ÀÌÅÍ:\n" << loadedData.dump(4) << "\n";
+//		// ë¶ˆëŸ¬ì˜¨ ë°ì´í„° ì¶œë ¥
+//		std::cout << "ë¶ˆëŸ¬ì˜¨ JSON ë°ì´í„°:\n" << loadedData.dump(4) << "\n";
 //
-//		// Æ¯Á¤ °ª Á¢±Ù
-//		std::cout << "ÀÌ¸§: " << loadedData["name"] << "\n";
-//		std::cout << "³ªÀÌ: " << loadedData["age"] << "\n";
+//		// íŠ¹ì • ê°’ ì ‘ê·¼
+//		std::cout << "ì´ë¦„: " << loadedData["name"] << "\n";
+//		std::cout << "ë‚˜ì´: " << loadedData["age"] << "\n";
 //	}
 //	else
 //	{
-//		std::cerr << "ÆÄÀÏÀ» ÀĞÀ» ¼ö ¾ø½À´Ï´Ù!\n";
+//		std::cerr << "íŒŒì¼ì„ ì½ì„ ìˆ˜ ì—†ìŠµë‹ˆë‹¤!\n";
 //		return 1;
 //	}
 //
@@ -229,56 +233,56 @@ int main()
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 
-//#include <iostream>      // Ç¥ÁØ ÀÔÃâ·Â Çì´õ (std::cout, std::cerr »ç¿ë)
-//#include <string>        // std::string »ç¿ëÀ» À§ÇÑ Çì´õ
-//#include <curl/curl.h>   // libcurl ¶óÀÌºê·¯¸® Çì´õ (HTTP ¿äÃ»À» À§ÇØ ÇÊ¿ä)
+//#include <iostream>      // í‘œì¤€ ì…ì¶œë ¥ í—¤ë” (std::cout, std::cerr ì‚¬ìš©)
+//#include <string>        // std::string ì‚¬ìš©ì„ ìœ„í•œ í—¤ë”
+//#include <curl/curl.h>   // libcurl ë¼ì´ë¸ŒëŸ¬ë¦¬ í—¤ë” (HTTP ìš”ì²­ì„ ìœ„í•´ í•„ìš”)
 //
-//// Äİ¹é ÇÔ¼ö: ÀÀ´ä µ¥ÀÌÅÍ¸¦ ¹Ş¾Æ¼­ ¹®ÀÚ¿­¿¡ ÀúÀå
+//// ì½œë°± í•¨ìˆ˜: ì‘ë‹µ ë°ì´í„°ë¥¼ ë°›ì•„ì„œ ë¬¸ìì—´ì— ì €ì¥
 //size_t WriteCallback(void* contents, size_t size, size_t nmemb, std::string* output) {
-//    size_t totalSize = size * nmemb;        // ½ÇÁ¦ µ¥ÀÌÅÍ Å©±â °è»ê
-//    output->append((char*)contents, totalSize); // ¹ŞÀº µ¥ÀÌÅÍ¸¦ output ¹®ÀÚ¿­¿¡ Ãß°¡
-//    return totalSize;                        // Ã³¸®ÇÑ µ¥ÀÌÅÍ Å©±â ¹İÈ¯
+//    size_t totalSize = size * nmemb;        // ì‹¤ì œ ë°ì´í„° í¬ê¸° ê³„ì‚°
+//    output->append((char*)contents, totalSize); // ë°›ì€ ë°ì´í„°ë¥¼ output ë¬¸ìì—´ì— ì¶”ê°€
+//    return totalSize;                        // ì²˜ë¦¬í•œ ë°ì´í„° í¬ê¸° ë°˜í™˜
 //}
 //
 //int main() {
-//    CURL* curl;               // cURL ÇÚµé
-//    CURLcode res;             // cURL ¿äÃ» °á°ú ÄÚµå
-//    std::string response;     // ¼­¹ö ÀÀ´äÀ» ÀúÀåÇÒ ¹®ÀÚ¿­
+//    CURL* curl;               // cURL í•¸ë“¤
+//    CURLcode res;             // cURL ìš”ì²­ ê²°ê³¼ ì½”ë“œ
+//    std::string response;     // ì„œë²„ ì‘ë‹µì„ ì €ì¥í•  ë¬¸ìì—´
 //
-//    curl_global_init(CURL_GLOBAL_ALL);  // cURL ¶óÀÌºê·¯¸® ÃÊ±âÈ­
-//    curl = curl_easy_init();            // cURL ÇÚµé »ı¼º
+//    curl_global_init(CURL_GLOBAL_ALL);  // cURL ë¼ì´ë¸ŒëŸ¬ë¦¬ ì´ˆê¸°í™”
+//    curl = curl_easy_init();            // cURL í•¸ë“¤ ìƒì„±
 //
-//    if (curl) {  // cURL ÇÚµéÀÌ Á¤»óÀûÀ¸·Î »ı¼ºµÇ¾ú´ÂÁö È®ÀÎ
-//        // CA ÀÎÁõ¼­ ÆÄÀÏ ¼³Á¤ (SSL °ËÁõÀ» À§ÇÑ ÀÎÁõ¼­ °æ·Î)
+//    if (curl) {  // cURL í•¸ë“¤ì´ ì •ìƒì ìœ¼ë¡œ ìƒì„±ë˜ì—ˆëŠ”ì§€ í™•ì¸
+//        // CA ì¸ì¦ì„œ íŒŒì¼ ì„¤ì • (SSL ê²€ì¦ì„ ìœ„í•œ ì¸ì¦ì„œ ê²½ë¡œ)
 //        curl_easy_setopt(curl, CURLOPT_CAINFO, "./pem/cacert.pem");
 //
-//        // ¿äÃ»ÇÒ URL ¼³Á¤ (³×ÀÌ¹ö È¨ÆäÀÌÁö ¿äÃ»)
+//        // ìš”ì²­í•  URL ì„¤ì • (ë„¤ì´ë²„ í™ˆí˜ì´ì§€ ìš”ì²­)
 //        curl_easy_setopt(curl, CURLOPT_URL, "https://www.example.com/");
 //
-//        // ÀÀ´ä µ¥ÀÌÅÍ¸¦ Ã³¸®ÇÒ Äİ¹é ÇÔ¼ö ¼³Á¤
+//        // ì‘ë‹µ ë°ì´í„°ë¥¼ ì²˜ë¦¬í•  ì½œë°± í•¨ìˆ˜ ì„¤ì •
 //        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
-//        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response); // WriteCallback¿¡ response Àü´Ş
+//        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response); // WriteCallbackì— response ì „ë‹¬
 //
-//        //// SSL ÀÎÁõ¼­ °ËÁõ ºñÈ°¼ºÈ­ (º¸¾È Ãë¾àÇÏÁö¸¸, ÀÎÁõ¼­ ¹®Á¦°¡ ÀÖÀ» ¶§ ÇØ°á °¡´É)
+//        //// SSL ì¸ì¦ì„œ ê²€ì¦ ë¹„í™œì„±í™” (ë³´ì•ˆ ì·¨ì•½í•˜ì§€ë§Œ, ì¸ì¦ì„œ ë¬¸ì œê°€ ìˆì„ ë•Œ í•´ê²° ê°€ëŠ¥)
 //        // curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
 //        // curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
 //
-//        // HTTP ¿äÃ» ½ÇÇà
+//        // HTTP ìš”ì²­ ì‹¤í–‰
 //        res = curl_easy_perform(curl);
 //
-//        // ¿äÃ»ÀÌ ¼º°øÇß´ÂÁö È®ÀÎ
+//        // ìš”ì²­ì´ ì„±ê³µí–ˆëŠ”ì§€ í™•ì¸
 //        if (res != CURLE_OK) {
-//            // ¿äÃ»ÀÌ ½ÇÆĞÇÑ °æ¿ì ¿À·ù ¸Ş½ÃÁö Ãâ·Â
+//            // ìš”ì²­ì´ ì‹¤íŒ¨í•œ ê²½ìš° ì˜¤ë¥˜ ë©”ì‹œì§€ ì¶œë ¥
 //            std::cerr << "curl_easy_perform() failed: " << curl_easy_strerror(res) << std::endl;
 //        }
 //        else {
-//            // ¿äÃ»ÀÌ ¼º°øÇÑ °æ¿ì ¼­¹ö ÀÀ´ä Ãâ·Â
+//            // ìš”ì²­ì´ ì„±ê³µí•œ ê²½ìš° ì„œë²„ ì‘ë‹µ ì¶œë ¥
 //            std::cout << "Response:\n" << response << std::endl;
 //        }
 //
-//        curl_easy_cleanup(curl);  // cURL ÇÚµé Á¤¸®
+//        curl_easy_cleanup(curl);  // cURL í•¸ë“¤ ì •ë¦¬
 //    }
 //
-//    curl_global_cleanup();  // cURL ¶óÀÌºê·¯¸® Á¾·á
-//    return 0;               // ÇÁ·Î±×·¥ Á¾·á
+//    curl_global_cleanup();  // cURL ë¼ì´ë¸ŒëŸ¬ë¦¬ ì¢…ë£Œ
+//    return 0;               // í”„ë¡œê·¸ë¨ ì¢…ë£Œ
 //}
