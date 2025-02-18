@@ -1,0 +1,10 @@
+{
+    "age": 30,
+    "isEmployed": true,
+    "name": "John Doe",
+    "skills": [
+        "C++",
+        "Python",
+        "JavaScript"
+    ]
+}
