@@ -27,16 +27,17 @@ void from_json(const nlohmann::json& j, FUserInfo& userInfo)
     j.at("is_marriage").get_to(userInfo.bIsMarriage);
 }
 
-std::vector<FUserInfo> ParseUserInfo(const nlohmann::json& jsonData)
+bool ParseUserInfo(const nlohmann::json& jsonData, std::map<std::string, FUserInfo>& users)
 {
-    std::vector<FUserInfo> userList;
+    users.clear();
 
     if (jsonData.contains("results") && jsonData["results"].is_array())
     {
         for (const auto& item : jsonData["results"])
         {
             FUserInfo user;
-
+            std::string pageID = item["id"];
+            
             // name
             if (item.contains("properties")
                 && item["properties"].contains("name"))
@@ -69,15 +70,20 @@ std::vector<FUserInfo> ParseUserInfo(const nlohmann::json& jsonData)
                 user.bIsMarriage = item["properties"]["is_marriage"]["checkbox"].get<bool>();
             }
 
-            userList.push_back(user);
+            users.emplace(std::pair<std::string, FUserInfo>(pageID, user));
         }
     }
-    return userList;
+
+    if (users.empty())
+        return false;
+    
+    return true;
 }
 
+
 // Notion API 설정
-const std::string NOTION_API_KEY = "Bearer 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"; // 여기에 API 키 입력
-const std::string DATABASE_ID = "19e45759635e8028adb0d83e3cf969ff"; // 여기에 Notion 데이터베이스 ID 입력
+const std::string NOTION_API_KEY = "Bearer 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";
+const std::string DATABASE_ID = "19e45759635e8028adb0d83e3cf969ff";
 const std::string BASE_URL = "https://api.notion.com/v1/";
 
 // 응답 데이터 저장 콜백 함수
@@ -209,7 +215,7 @@ void CreateUserRecord(const FUserInfo& userInfo)
     // std::cout << "Response:\n" << response << std::endl;
 }
 
-void ReadRecords()
+bool ReadRecords(std::map<std::string, FUserInfo>& users)
 {
     std::cout << "ReadRecords()" << std::endl;
     std::string url = BASE_URL + "databases/" + DATABASE_ID + "/query";
@@ -217,32 +223,35 @@ void ReadRecords()
 
     // JSON 파싱
     nlohmann::json jsonData = nlohmann::json::parse(response);
-    std::vector<FUserInfo> users = ParseUserInfo(jsonData);
 
-    // std::cout << std::endl;
-    // std::cout << jsonData.dump(4) << std::endl;
-    // std::cout << std::endl;
+    if (ParseUserInfo(jsonData, users) == false)
+        return false;
+
+    std::cout << std::endl;
+    std::cout << jsonData.dump(4) << std::endl;
+    std::cout << std::endl;
     
     // 결과 출력
     for (const auto& user : users)
     {
-        std::cout << "Name: " << user.Name <<
-            ", Phone: " << user.PhoneNumber <<
-            ", Age: " << user.Age <<
-            ", Married: " << (user.bIsMarriage ? "Yes" : "No") << std::endl;
+        std::cout << "Name: " << user.second.Name <<
+            ", Phone: " << user.second.PhoneNumber <<
+            ", Age: " << user.second.Age <<
+            ", Married: " << (user.second.bIsMarriage ? "Yes" : "No") <<
+            ", PageID: " << user.first <<std::endl;
     }
+
+    return true;
 }
 
 void UpdateRecord(const std::string& page_id)
 {
     std::string url = BASE_URL + "pages/" + page_id;
-    std::string jsonData = R"({
-        "properties": {
-            "Status": { "select": { "name": "Completed" } }
-        }
-    })";
+    nlohmann::json requestBody;
+    requestBody["properties"]["phone_number"]["phone_number"] = "010-1234-5678";
 
-    std::string response = SendRequest(url, "PATCH", jsonData);
+    // 변경한 해당 레코드를 반환해준다.
+    std::string response = SendRequest(url, "PATCH", requestBody.dump());
     std::cout << "Update Response:\n" << response << std::endl;
 }
 
@@ -260,17 +269,20 @@ int main()
     //1. 새 레코드 추가
     FUserInfo user;
     user.Name = "Yeb";
-    user.PhoneNumber = "321-654-9878";
+    user.PhoneNumber = "999-8888-7777";
     user.Age = 28;
     user.bIsMarriage = true;
     CreateUserRecord(user);
 
     //2. 레코드 조회
-    ReadRecords();
+    std::map<std::string, FUserInfo> users;
+    ReadRecords(users);
 
-    ////3. 특정 레코드 수정 (Page ID는 직접 설정해야 함)
-    //std::string page_id = "YOUR_PAGE_ID_HERE"; // 실제 ID로 변경해야 함
-    //UpdateRecord(page_id);
+    //3. 특정 레코드 수정 (Page ID는 직접 설정해야 함)
+    std::map<std::string, FUserInfo>::iterator iterEnd = users.end();
+    iterEnd--;
+    std::string page_id = iterEnd->first;
+    UpdateRecord(page_id);
 
     ////4. 특정 레코드 삭제 (아카이브)
     //DeleteRecord(page_id);
