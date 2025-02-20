@@ -2,6 +2,7 @@
 #include <string>
 #include <nlohmann/json.hpp>
 #include <curl/curl.h>
+#include "ConstString.h"
 
 struct FUserInfo
 {
@@ -11,63 +12,69 @@ struct FUserInfo
     bool bIsMarriage;
 };
 
+void PrintRecords(const std::map<std::string, FUserInfo>& users);
+bool CreateUserRecord(const FUserInfo& userInfo);
+bool ReadRecords(std::map<std::string, FUserInfo>& users);
+bool UpdateRecord(const std::string& page_id);
+bool DeleteRecord(const std::string& page_id);
+
 void to_json(nlohmann::json& j, const FUserInfo& userInfo)
 {
     j = nlohmann::json{
-        {"name", userInfo.Name}, {"phone_number", userInfo.PhoneNumber}, {"age", userInfo.Age},
-        {"is_marriage", userInfo.bIsMarriage}
+        {PROP_NAME, userInfo.Name}, {PROP_PHONE_NUMBER, userInfo.PhoneNumber}, {PROP_AGE, userInfo.Age},
+        {PROP_IS_MARRIAGE, userInfo.bIsMarriage}
     };
 }
 
 void from_json(const nlohmann::json& j, FUserInfo& userInfo)
 {
-    j.at("name").get_to(userInfo.Name);
-    j.at("phone_number").get_to(userInfo.PhoneNumber);
-    j.at("age").get_to(userInfo.Age);
-    j.at("is_marriage").get_to(userInfo.bIsMarriage);
+    j.at(PROP_NAME).get_to(userInfo.Name);
+    j.at(PROP_PHONE_NUMBER).get_to(userInfo.PhoneNumber);
+    j.at(PROP_AGE).get_to(userInfo.Age);
+    j.at(PROP_IS_MARRIAGE).get_to(userInfo.bIsMarriage);
 }
 
 bool ParseUserInfo(const nlohmann::json& jsonData, std::map<std::string, FUserInfo>& users)
 {
     users.clear();
 
-    if (jsonData.contains("results") && jsonData["results"].is_array())
+    if (jsonData.contains(RESULT) && jsonData[RESULT].is_array())
     {
-        for (const auto& item : jsonData["results"])
+        for (const auto& item : jsonData[RESULT])
         {
             FUserInfo user;
-            std::string pageID = item["id"];
-            
+            std::string pageID = item[ID];
+
             // name
-            if (item.contains("properties")
-                && item["properties"].contains("name"))
+            if (item.contains(PROPERTIES)
+                && item[PROPERTIES].contains(PROP_NAME))
             {
-                auto titleArray = item["properties"]["name"]["title"];
-                if (!titleArray.empty() && titleArray[0].contains("plain_text"))
+                auto titleArray = item[PROPERTIES][PROP_NAME][ATT_TITLE];
+                if (!titleArray.empty() && titleArray[0].contains(ATT_PLAIN_TEXT))
                 {
-                    user.Name = titleArray[0]["plain_text"].get<std::string>();
+                    user.Name = titleArray[0][ATT_PLAIN_TEXT].get<std::string>();
                 }
             }
 
             // phone_number
-            if (item["properties"].contains("phone_number")
-                && item["properties"]["phone_number"].contains("phone_number"))
+            if (item[PROPERTIES].contains(PROP_PHONE_NUMBER)
+                && item[PROPERTIES][PROP_PHONE_NUMBER].contains(PROP_PHONE_NUMBER))
             {
-                user.PhoneNumber = item["properties"]["phone_number"]["phone_number"].get<std::string>();
+                user.PhoneNumber = item[PROPERTIES][PROP_PHONE_NUMBER][PROP_PHONE_NUMBER].get<std::string>();
             }
 
             // age
-            if (item["properties"].contains("age")
-                && item["properties"]["age"].contains("number"))
+            if (item[PROPERTIES].contains(PROP_AGE)
+                && item[PROPERTIES][PROP_AGE].contains(ATT_NUMBER))
             {
-                user.Age = item["properties"]["age"]["number"].get<int>();
+                user.Age = item[PROPERTIES][PROP_AGE][ATT_NUMBER].get<int>();
             }
 
             // is_marriage
-            if (item["properties"].contains("is_marriage")
-                && item["properties"]["is_marriage"].contains("checkbox"))
+            if (item[PROPERTIES].contains(PROP_IS_MARRIAGE)
+                && item[PROPERTIES][PROP_IS_MARRIAGE].contains(ATT_CHECKBOX))
             {
-                user.bIsMarriage = item["properties"]["is_marriage"]["checkbox"].get<bool>();
+                user.bIsMarriage = item[PROPERTIES][PROP_IS_MARRIAGE][ATT_CHECKBOX].get<bool>();
             }
 
             users.emplace(std::pair<std::string, FUserInfo>(pageID, user));
@@ -76,15 +83,91 @@ bool ParseUserInfo(const nlohmann::json& jsonData, std::map<std::string, FUserIn
 
     if (users.empty())
         return false;
-    
+
     return true;
 }
 
+nlohmann::json ConvertToJson(const FUserInfo& userInfo)
+{
+    nlohmann::json jsonData;
 
-// Notion API 설정
-const std::string NOTION_API_KEY = "Bearer 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";
-const std::string DATABASE_ID = "19e45759635e8028adb0d83e3cf969ff";
-const std::string BASE_URL = "https://api.notion.com/v1/";
+    // 부모 데이터베이스 ID 설정
+    jsonData[ATT_PARENT][ATT_DATABASE_ID] = DATABASE_ID;
+    jsonData[ATT_PARENT][ATT_TYPE] = ATT_DATABASE_ID;
+
+    // 개별 속성 설정
+    nlohmann::json ageProperty;
+    ageProperty[ATT_NUMBER] = userInfo.Age;
+    ageProperty[ATT_TYPE] = ATT_NUMBER;
+
+    nlohmann::json marriedProperty;
+    marriedProperty[ATT_CHECKBOX] = userInfo.bIsMarriage;
+    marriedProperty[ATT_TYPE] = ATT_CHECKBOX;
+
+    nlohmann::json nameProperty;
+    nameProperty =
+    {
+        {ATT_TITLE, {
+                        {
+                            {"text",
+                                {{"content", userInfo.Name}}
+                            },
+                            {ATT_PLAIN_TEXT, userInfo.Name}
+                        }
+        }}
+    };
+
+    /*
+        // origin.
+        {
+            "title": [
+                {
+                    "text": {
+                        "content": "Yeb"
+                    },
+                    "plain_text": "Yeb"
+                }
+            ]
+        }
+
+        // nlohmann json format in c++.
+        {
+            {"title", {
+                    {
+                        {"text", {{"content", "Yeb"}}},
+                        {"plain_text", "Yeb"}
+                    }
+            }}
+        };
+
+        // convert to my code.
+        {
+            {ATT_TITLE, {
+                    {
+                        {"text", {{"content", userInfo.Name}}},
+                        {ATT_PLAIN_TEXT, userInfo.Name}
+                    }
+            }}
+        };
+    */
+
+    std::cout << nameProperty.dump(4) << std::endl;
+
+    nlohmann::json phoneProperty;
+    phoneProperty[PROP_PHONE_NUMBER] = userInfo.PhoneNumber;
+    phoneProperty[ATT_TYPE] = PROP_PHONE_NUMBER;
+
+    // 모든 속성을 합쳐서 properties에 추가
+    jsonData[PROPERTIES] = {
+        {PROP_AGE, ageProperty},
+        {PROP_IS_MARRIAGE, marriedProperty},
+        {PROP_NAME, nameProperty},
+        {PROP_PHONE_NUMBER, phoneProperty}
+    };
+
+    return jsonData;
+}
+
 
 // 응답 데이터 저장 콜백 함수
 size_t WriteCallback(void* contents, size_t size, size_t nmemb, std::string* output)
@@ -101,15 +184,15 @@ std::string SendRequest(const std::string& url, const std::string& method, const
     if (!curl) return "Failed to initialize cURL";
 
     // SSL 인증서 파일 설정 (SSL 검증을 위한 인증서 경로)
-    curl_easy_setopt(curl, CURLOPT_CAINFO, "./pem/cacert.pem");
+    curl_easy_setopt(curl, CURLOPT_CAINFO, CACERT_PATH.c_str());
 
     std::string response;
     struct curl_slist* headers = NULL;
 
     // 헤더 추가
-    headers = curl_slist_append(headers, ("Authorization: " + NOTION_API_KEY).c_str());
-    headers = curl_slist_append(headers, "Notion-Version: 2022-06-28");
-    headers = curl_slist_append(headers, "Content-Type: application/json");
+    headers = curl_slist_append(headers, (HEADER_AUTHORIZATION + NOTION_API_KEY).c_str());
+    headers = curl_slist_append(headers, HEADER_NOTION_VERSION.c_str());
+    headers = curl_slist_append(headers, HEADER_CONTENT_TYPE.c_str());
 
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
@@ -117,25 +200,25 @@ std::string SendRequest(const std::string& url, const std::string& method, const
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
 
     // HTTP Method 설정
-    if (method == "POST")
+    if (method == METHOD_POST)
     {
         curl_easy_setopt(curl, CURLOPT_POST, 1L);
         curl_easy_setopt(curl, CURLOPT_POSTFIELDS, jsonData.c_str());
     }
-    else if (method == "PATCH")
+    else if (method == METHOD_PATCH)
     {
-        curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PATCH");
+        curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, METHOD_PATCH.c_str());
         curl_easy_setopt(curl, CURLOPT_POSTFIELDS, jsonData.c_str());
     }
-    else if (method == "DELETE")
+    else if (method == METHOD_DELETE)
     {
-        curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "DELETE");
+        curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, METHOD_DELETE.c_str());
     }
 
     CURLcode res = curl_easy_perform(curl);
     if (res != CURLE_OK)
     {
-        std::cerr << "cURL request failed: " << curl_easy_strerror(res) << std::endl;
+        std::cerr << "cURL request failed: " << curl_easy_strerror(res) << "\n";
     }
 
     // 리소스 해제
@@ -145,123 +228,86 @@ std::string SendRequest(const std::string& url, const std::string& method, const
     return response;
 }
 
-nlohmann::json ConvertToJson(const FUserInfo& userInfo)
+bool CreateUserRecord(const FUserInfo& userInfo)
 {
-    nlohmann::json jsonData;
-
-    // 부모 데이터베이스 ID 설정
-    jsonData["parent"]["database_id"] = DATABASE_ID;
-    jsonData["parent"]["type"] = "database_id";
-
-    // 개별 속성 설정
-    nlohmann::json ageProperty;
-    ageProperty["number"] = userInfo.Age;
-    ageProperty["type"] = "number";
-    
-    nlohmann::json marriedProperty;
-    marriedProperty["checkbox"] = userInfo.bIsMarriage;
-    marriedProperty["type"] = "checkbox";
-
-    nlohmann::json nameProperty;
-    nameProperty =   {
-                            {"id", "title"},
-                            {"type", "title"},
-                            {"title", {
-                                    {
-                                        {"type", "text"},
-                                        {"text", {
-                                            {"content", userInfo.Name},
-                                            {"link", nullptr}
-                                        }},
-                                        {"plain_text", userInfo.Name},
-                                        {"href", nullptr},
-                                        {"annotations", {
-                                            {"bold", false},
-                                            {"italic", false},
-                                            {"strikethrough", false},
-                                            {"underline", false},
-                                            {"code", false},
-                                            {"color", "default"}
-                                        }}
-                                    }
-                            }}
-                        };
-
-    nlohmann::json phoneProperty;
-    phoneProperty["phone_number"] = userInfo.PhoneNumber;
-    phoneProperty["type"] = "phone_number";
-
-    // 모든 속성을 합쳐서 properties에 추가
-    jsonData["properties"] = {
-        {"age", ageProperty},
-        {"is_marriage", marriedProperty},
-        {"name", nameProperty},
-        {"phone_number", phoneProperty}
-    };
-
-    return jsonData;
-}
-
-void CreateUserRecord(const FUserInfo& userInfo)
-{
-    std::string url = BASE_URL + "pages";
+    const std::string url = BASE_URL + "pages";
     nlohmann::json jsonData = ConvertToJson(userInfo);
-    
-    std::string jsonString = jsonData.dump(4);  // JSON을 문자열로 변환
-    
-    std::string response = SendRequest(url, "POST", jsonString);
-    // std::cout << "jsonString:\n" << jsonString << std::endl;
-    // std::cout << std::endl;
-    // std::cout << "Response:\n" << response << std::endl;
+
+    std::string jsonString = jsonData.dump(4); // JSON을 문자열로 변환
+
+    std::string response = SendRequest(url, METHOD_POST, jsonString);
+
+    if (response.empty())
+        return false;
+
+        // std::cout << "jsonString:\n" << jsonString << "\n";
+        // std::cout << "\n";
+        // std::cout << "Response:\n" << response << "\n";
+    return true;
 }
 
 bool ReadRecords(std::map<std::string, FUserInfo>& users)
 {
-    std::cout << "ReadRecords()" << std::endl;
-    std::string url = BASE_URL + "databases/" + DATABASE_ID + "/query";
-    std::string response = SendRequest(url, "POST", "{}"); // Notion API는 GET이 아니라 POST 사용!
+    std::cout << "ReadRecords()" << "\n";
+    const std::string url = BASE_URL + "databases/" + DATABASE_ID + "/query";
+    std::string response = SendRequest(url, METHOD_POST, "{}"); // Notion API는 GET이 아니라 POST 사용!
 
-    // JSON 파싱
+    if (response.empty())
+        return false;
+    
     nlohmann::json jsonData = nlohmann::json::parse(response);
-
     if (ParseUserInfo(jsonData, users) == false)
         return false;
 
-    std::cout << std::endl;
-    std::cout << jsonData.dump(4) << std::endl;
-    std::cout << std::endl;
+    PrintRecords(users);
+    return true;
+}
+
+bool UpdateRecord(const std::string& page_id)
+{
+    const std::string url = BASE_URL + "pages/" + page_id;
+    nlohmann::json requestBody;
+    requestBody[PROPERTIES][PROP_PHONE_NUMBER][PROP_PHONE_NUMBER] = "010-1234-5678";
+
+    // 변경한 해당 레코드를 반환해준다.
+    std::string response = SendRequest(url, METHOD_PATCH, requestBody.dump());
+
+    if (response.empty())
+    {
+        return false;
+    }
     
-    // 결과 출력
+    std::cout << "Update Response:\n" << response << "\n";
+    return true;
+}
+
+bool DeleteRecord(const std::string& page_id)
+{
+    const std::string url = BASE_URL + "pages/" + page_id;
+    nlohmann::json jsonData;
+    jsonData[ATT_ARCHIVED] = true;
+
+    std::string response = SendRequest(url, METHOD_PATCH, jsonData.dump());
+
+    if (response.empty())
+    {
+        return false;
+    }
+
+    std::cout << "Delete (Archive) Response:\n" << response << "\n";
+    return true;
+}
+
+void PrintRecords(const std::map<std::string, FUserInfo>& users)
+{
     for (const auto& user : users)
     {
         std::cout << "Name: " << user.second.Name <<
             ", Phone: " << user.second.PhoneNumber <<
             ", Age: " << user.second.Age <<
             ", Married: " << (user.second.bIsMarriage ? "Yes" : "No") <<
-            ", PageID: " << user.first <<std::endl;
+            ", PageID: " << user.first << "\n";
     }
-
-    return true;
-}
-
-void UpdateRecord(const std::string& page_id)
-{
-    std::string url = BASE_URL + "pages/" + page_id;
-    nlohmann::json requestBody;
-    requestBody["properties"]["phone_number"]["phone_number"] = "010-1234-5678";
-
-    // 변경한 해당 레코드를 반환해준다.
-    std::string response = SendRequest(url, "PATCH", requestBody.dump());
-    std::cout << "Update Response:\n" << response << std::endl;
-}
-
-void DeleteRecord(const std::string& page_id)
-{
-    std::string url = BASE_URL + "pages/" + page_id;
-    std::string jsonData = R"({ "archived": true })";
-
-    std::string response = SendRequest(url, "PATCH", jsonData);
-    std::cout << "Delete (Archive) Response:\n" << response << std::endl;
 }
 
 int main()
@@ -279,13 +325,15 @@ int main()
     ReadRecords(users);
 
     //3. 특정 레코드 수정 (Page ID는 직접 설정해야 함)
-    std::map<std::string, FUserInfo>::iterator iterEnd = users.end();
-    iterEnd--;
+    auto iterEnd = users.end();
+    --iterEnd;
     std::string page_id = iterEnd->first;
     UpdateRecord(page_id);
 
-    ////4. 특정 레코드 삭제 (아카이브)
-    //DeleteRecord(page_id);
+    //4. 특정 레코드 삭제 (아카이브)
+    auto iterFirst = users.begin();
+    page_id = iterFirst->first;
+    DeleteRecord(page_id);
 
     return 0;
 }
