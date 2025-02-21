@@ -133,10 +133,17 @@
         </Link>
     </ItemDefinitionGroup>
     <ItemGroup>
+        <ClCompile Include="CURL.cpp" />
+        <ClCompile Include="JsonController.cpp" />
         <ClCompile Include="main.cpp"/>
+        <ClCompile Include="NotionDBController.cpp" />
     </ItemGroup>
     <ItemGroup>
+        <ClInclude Include="Common.h" />
         <ClInclude Include="ConstString.h"/>
+        <ClInclude Include="CURL.h" />
+        <ClInclude Include="JsonController.h" />
+        <ClInclude Include="NotionDBController.h" />
     </ItemGroup>
     <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets"/>
     <ImportGroup Label="ExtensionTargets">
