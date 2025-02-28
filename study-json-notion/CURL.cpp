@@ -15,7 +15,9 @@ size_t WriteCallback(void* contents, size_t size, size_t nmemb, std::string* out
     return totalSize;
 }
 
-std::string CCURL::SendRequest(const std::string& InURL, const std::string& InMethod, const std::string& InJsonData)
+std::string CCURL::SendRequest(const std::string& InURL
+    , const std::string& InMethod
+    , const std::string& InJsonData)
 {
     CURL* curl = curl_easy_init();
     if (!curl) return "Failed to initialize cURL";

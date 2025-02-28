@@ -19,6 +19,7 @@ public:
     const std::string METHOD_POST = "POST";
     const std::string METHOD_PATCH = "PATCH";
     const std::string METHOD_DELETE = "DELETE";
+    const std::string METHOD_GET = "GET";
     
 public:
     static CCURL* GetInstance()
